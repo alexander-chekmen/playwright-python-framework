@@ -1,37 +1,32 @@
-# conftest.py - shared pytest fixtures for Playwright browser setup
+"""Project-wide pytest configuration.
 
-import pytest
+Holds only app-agnostic plumbing. App-specific fixtures live in the nested
+``conftest.py`` under each ``tests/<app>/`` directory.
+"""
+
 import logging
-from playwright.sync_api import sync_playwright
+import pytest
 
+# Here you can change Playwright's default 30000 timeout, helpful when debugging locally
+DEFAULT_TIMEOUT_MS = 30000
 
-@pytest.fixture(scope="function")
-def page(request):
-    # By default playwright will run in headless mode.
-    # To run it in headed mode use --headed in pytest.
-    headed = request.config.getoption("--headed")
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headed)
-
-        context = browser.new_context()
-        page = context.new_page()
-
-        yield page
-
-        context.close()
-        browser.close()
-
-def setup_logging():
+def pytest_configure(config):
     logging.basicConfig(
         level=logging.INFO,
-        format="\n%(asctime)s - %(levelname)s - %(message)s"
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     )
 
-setup_logging()
+@pytest.fixture(autouse=True)
+def _set_default_timeout(page):
+    """Cap Playwright's default action and navigation timeouts for every test.
 
+    Autouse, so it applies to each test's 'page' without being requested.
+    Overrides Playwright's 30s built-in default with 'DEFAULT_TIMEOUT_MS',
+    making element waits (clicks, fills, 'wait_for', auto-waiting queries)
+    and navigations ('goto', 'wait_for_url') fail faster.
 
-# This adds a separator between each test in a console for readability
-def pytest_runtest_logreport(report):
-    if report.when == "call":
-        print("\n" + "-" * 60)
+    Does not affect 'expect(...)' assertions, which keep their own default;
+    individual calls can still override via a 'timeout' argument.
+    """
+    page.set_default_timeout(DEFAULT_TIMEOUT_MS)
+    page.set_default_navigation_timeout(DEFAULT_TIMEOUT_MS)

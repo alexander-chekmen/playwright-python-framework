@@ -1,4 +1,5 @@
-
-pytest
-playwright
-pytest-playwright
+playwright==1.59.0
+pytest==9.0.3
+pytest-html==4.2.0
+pytest-playwright==0.8.0
+pytest-rerunfailures==16.3
